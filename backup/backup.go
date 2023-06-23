@@ -76,7 +76,7 @@ func Backup() {
 
 		// Upload the file to S3 bucket
 		bucketName := os.Getenv("BUCKET_NAME")
-		localPath := resultFilename
+		localPath := resultFilename + ".sql"
 		err = UploadObject(localPath, bucketName, remotePath)
 		if err != nil {
 			log.Printf("Error uploading to bucket: %v", err)
