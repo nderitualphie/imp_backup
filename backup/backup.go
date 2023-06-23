@@ -3,7 +3,7 @@ package bp
 import (
 	"database/sql"
 	"fmt"
-
+	"log"
 	"os"
 	"time"
 
@@ -19,12 +19,14 @@ func Backup() {
 	port := os.Getenv("DB_PORT")
 
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/", username, password, hostname, port))
+	log.Print("Success connecting to database")
 	if err != nil {
 		fmt.Println("Error opening database connection: ", err)
 
 	}
 	defer db.Close()
 	rows, err := db.Query("SHOW DATABASES")
+	log.Print("success showing databases")
 	if err != nil {
 		fmt.Println("Error opening database: ", err)
 
@@ -69,7 +71,7 @@ func Backup() {
 			fmt.Println("Error dumping:", err)
 
 		}
-		fmt.Printf("File is saved to %s\n", resultFilename)
+		log.Printf("File is saved to %s\n", resultFilename)
 
 		// Close dumper and connected database
 		dumper.Close()
