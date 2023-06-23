@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/JamesStewy/go-mysqldump"
 	_ "github.com/go-sql-driver/mysql"
-	"log"
 	"os"
 	"time"
 )
@@ -16,7 +15,7 @@ func Backup() {
 	password := os.Getenv("DB_PASSWORD")
 	hostname := os.Getenv("DB_IP")
 	port := os.Getenv("DB_PORT")
-	remotePath := ""
+
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/", username, password, hostname, port))
 	if err != nil {
 		fmt.Println("Error opening database connection: ", err)
@@ -73,15 +72,9 @@ func Backup() {
 
 		// Close dumper and connected database
 		dumper.Close()
-
+		remotePath := os.Getenv("BUCKET_NAME")
 		// Upload the file to S3 bucket
-		bucketName := os.Getenv("BUCKET_NAME")
-		localPath := resultFilename + ".sql"
-		err = UploadObject(localPath, bucketName, remotePath)
-		if err != nil {
-			log.Printf("Error uploading to bucket: %v", err)
-
-		}
+		err = uploadFile(remotePath)
 	}
 
 	//// Use the localPath variable outside the for loop

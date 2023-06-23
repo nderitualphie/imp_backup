@@ -1,17 +1,29 @@
 package bp
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
+	//"bytes"
+	"bytes"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"log"
+	"net/http"
+	"os"
+	//"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"log"
-	"os"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
-// AWS_S3_REGION = "European Union"
-// session
+func myCustomResolver(service, region string, optFns ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
+	if service == endpoints.S3ServiceID {
+		return endpoints.ResolvedEndpoint{
+			URL:           "https://eu2.contabostorage.com",
+			SigningRegion: region,
+		}, nil
+	}
+
+	return endpoints.DefaultResolver().EndpointFor(service, region, optFns...)
+}
 func createSession() (*session.Session, error) {
 	region := os.Getenv("AWS_S3_REGION")
 	accessKey := os.Getenv("STORE_ACCESS_KEY")
@@ -32,39 +44,47 @@ func createSession() (*session.Session, error) {
 
 	return sess, err
 }
-
-func UploadObject(localPath string, remoteBucket string, remotePath string) (err error) {
+func uploadFile(uploadFileDir string) error {
 	sess, _ := createSession()
-	uploader := s3manager.NewUploader(sess)
-	// Open the local file
-	file, err := os.Open(localPath)
+	upFile, err := os.Open(uploadFileDir)
 	if err != nil {
-		log.Printf("Error uploading file from local:%v", err)
+		return err
 	}
-	defer file.Close()
-	// Upload the file to S3
-	result, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(remoteBucket),
-		Key:    aws.String(remotePath),
-		Body:   file,
-		ACL:    aws.String("public-read"),
-	})
+	defer upFile.Close()
+	files, err := upFile.Readdirnames(-1)
 	if err != nil {
-		log.Printf("Error uploading to bucket: %v", err)
+		return err
 	}
-	// Return the uploaded URI
+	//upFile.Close()
 
-	id := result.UploadID
-	log.Printf("upload id:%v", id)
-	return err
-}
-func myCustomResolver(service, region string, optFns ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
-	region = os.Getenv("AWS_S3_REGION")
-	if service == endpoints.S3ServiceID {
-		return endpoints.ResolvedEndpoint{
-			URL:           os.Getenv("STORE_ENDPOINT"),
-			SigningRegion: region,
-		}, nil
+	errChan := make(chan error)
+	doneChan := make(chan bool)
+
+	for _, file := range files {
+		go func() {
+			file, err := os.Open(uploadFileDir + file)
+			if err != nil {
+				errChan <- err
+			}
+			file.Close()
+		}()
+
+		doneChan <- true
 	}
-	return endpoints.DefaultResolver().EndpointFor(service, region, optFns...)
+
+	upFileInfo, _ := upFile.Stat()
+	var fileSize int64 = upFileInfo.Size()
+	fileBuffer := make([]byte, fileSize)
+	upFile.Read(fileBuffer)
+	bucket := os.Getenv("BUCKET_NAME")
+	_, err = s3.New(sess).PutObject(&s3.PutObjectInput{
+		Bucket:             aws.String(bucket),
+		Key:                aws.String(uploadFileDir),
+		ACL:                aws.String("public-read-write"),
+		Body:               bytes.NewReader(fileBuffer),
+		ContentLength:      aws.Int64(fileSize),
+		ContentType:        aws.String(http.DetectContentType(fileBuffer)),
+		ContentDisposition: aws.String("attachment"),
+	})
+	return err
 }
