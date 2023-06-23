@@ -80,6 +80,7 @@ func Backup() {
 	defer rows.Close()
 	//// Use the localPath variable outside the for loop
 	//fmt.Printf("Local path: %s\n", localPath)
+	dumpDir := os.Getenv("BACKUP_DIR")
 	err = uploadFile(dumpDir)
 	log.Print("uploading...")
 	if err != nil {

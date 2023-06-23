@@ -55,8 +55,12 @@ func uploadFile(uploadFileDir string) error {
 
 	upFile, err := os.Open(uploadFileDir)
 	if err != nil {
-		log.Printf("Error opening directory: %v", err)
-		return err
+		if os.IsNotExist(err) {
+			log.Printf("Directory does not exist: %s", uploadFileDir)
+		} else {
+			log.Printf("Error opening directory: %v", err)
+		}
+
 	}
 	defer upFile.Close()
 	log.Print("Directory opened successfully")
