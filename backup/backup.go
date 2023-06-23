@@ -3,10 +3,11 @@ package bp
 import (
 	"database/sql"
 	"fmt"
-	"github.com/JamesStewy/go-mysqldump"
-	_ "github.com/go-sql-driver/mysql"
 	"os"
 	"time"
+
+	"github.com/JamesStewy/go-mysqldump"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func Backup() {
@@ -72,9 +73,9 @@ func Backup() {
 
 		// Close dumper and connected database
 		dumper.Close()
-		remotePath := os.Getenv("BUCKET_NAME")
+		localPath := os.Getenv("BACKUP_DIR")
 		// Upload the file to S3 bucket
-		err = uploadFile(remotePath)
+		err = uploadFile(localPath)
 	}
 
 	//// Use the localPath variable outside the for loop
