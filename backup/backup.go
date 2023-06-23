@@ -73,15 +73,14 @@ func Backup() {
 		}
 		log.Printf("File is saved to %s\n", resultFilename)
 
-		// Close dumper and connected database
-		dumper.Close()
-
 		// Upload the file to S3 bucket
 		err = uploadFile(dumpDir)
+		log.Print("uploading...")
 		if err != nil {
 			fmt.Println("Error uploading file:", err)
 			continue
 		}
+		dumper.Close()
 	}
 
 	//// Use the localPath variable outside the for loop
