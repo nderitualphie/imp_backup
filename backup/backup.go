@@ -24,16 +24,13 @@ func Backup() {
 		fmt.Println("Error opening database connection: ", err)
 
 	}
-	defer db.Close()
+
 	rows, err := db.Query("SHOW DATABASES")
 	log.Print("success showing databases")
 	if err != nil {
 		fmt.Println("Error opening database: ", err)
 
 	}
-	defer rows.Close()
-
-	// Declare localPath variable
 
 	// Iterate over the databases and perform backup for each one
 	for rows.Next() {
@@ -82,7 +79,8 @@ func Backup() {
 		}
 		dumper.Close()
 	}
-
+	defer db.Close()
+	defer rows.Close()
 	//// Use the localPath variable outside the for loop
 	//fmt.Printf("Local path: %s\n", localPath)
 

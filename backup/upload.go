@@ -2,11 +2,13 @@ package bp
 
 import (
 	"bytes"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/s3"
+
 	//"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -45,21 +47,22 @@ func createSession() (*session.Session, error) {
 }
 func uploadFile(uploadFileDir string) error {
 	sess, err := createSession()
+	log.Print("success creating session")
 	if err != nil {
-		return err
+		log.Print(err)
 	}
 
 	upFile, err := os.Open(uploadFileDir)
+	log.Print("success opening directory")
 	if err != nil {
-		return err
+		log.Print(err)
 	}
-	defer upFile.Close()
 
 	files, err := upFile.Readdirnames(-1)
 	if err != nil {
-		return err
+		log.Print(err)
 	}
-
+	defer upFile.Close()
 	errChan := make(chan error)
 	doneChan := make(chan bool)
 
@@ -80,13 +83,13 @@ func uploadFile(uploadFileDir string) error {
 
 	upFileInfo, err := upFile.Stat()
 	if err != nil {
-		return err
+		log.Print(err)
 	}
 	fileSize := upFileInfo.Size()
 	fileBuffer := make([]byte, fileSize)
 	_, err = upFile.Read(fileBuffer)
 	if err != nil {
-		return err
+		log.Print(err)
 	}
 
 	bucket := os.Getenv("BUCKET_NAME")
