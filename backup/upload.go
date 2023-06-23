@@ -1,9 +1,9 @@
 package bp
 
 import (
-	//"bytes"
 	"bytes"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"log"
 	"net/http"
 	"os"
@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 func myCustomResolver(service, region string, optFns ...func(*endpoints.Options)) (endpoints.ResolvedEndpoint, error) {
@@ -45,37 +44,51 @@ func createSession() (*session.Session, error) {
 	return sess, err
 }
 func uploadFile(uploadFileDir string) error {
-	sess, _ := createSession()
+	sess, err := createSession()
+	if err != nil {
+		return err
+	}
+
 	upFile, err := os.Open(uploadFileDir)
 	if err != nil {
 		return err
 	}
 	defer upFile.Close()
+
 	files, err := upFile.Readdirnames(-1)
 	if err != nil {
 		return err
 	}
-	//upFile.Close()
 
 	errChan := make(chan error)
 	doneChan := make(chan bool)
 
 	for _, file := range files {
-		go func() {
-			file, err := os.Open(uploadFileDir + file)
+		go func(file string) {
+			f, err := os.Open(uploadFileDir + file)
 			if err != nil {
 				errChan <- err
 			}
-			file.Close()
-		}()
-
-		doneChan <- true
+			f.Close()
+			doneChan <- true
+		}(file)
 	}
 
-	upFileInfo, _ := upFile.Stat()
-	var fileSize int64 = upFileInfo.Size()
+	for range files {
+		<-doneChan
+	}
+
+	upFileInfo, err := upFile.Stat()
+	if err != nil {
+		return err
+	}
+	fileSize := upFileInfo.Size()
 	fileBuffer := make([]byte, fileSize)
-	upFile.Read(fileBuffer)
+	_, err = upFile.Read(fileBuffer)
+	if err != nil {
+		return err
+	}
+
 	bucket := os.Getenv("BUCKET_NAME")
 	_, err = s3.New(sess).PutObject(&s3.PutObjectInput{
 		Bucket:             aws.String(bucket),
@@ -86,5 +99,6 @@ func uploadFile(uploadFileDir string) error {
 		ContentType:        aws.String(http.DetectContentType(fileBuffer)),
 		ContentDisposition: aws.String("attachment"),
 	})
+
 	return err
 }

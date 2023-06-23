@@ -3,6 +3,7 @@ package bp
 import (
 	"database/sql"
 	"fmt"
+
 	"os"
 	"time"
 
@@ -37,7 +38,6 @@ func Backup() {
 		var dbName string
 		if err := rows.Scan(&dbName); err != nil {
 			fmt.Println("Error scanning database name: ", err)
-
 		}
 
 		// Skip system databases
@@ -73,9 +73,13 @@ func Backup() {
 
 		// Close dumper and connected database
 		dumper.Close()
-		localPath := os.Getenv("BACKUP_DIR")
+
 		// Upload the file to S3 bucket
-		err = uploadFile(localPath)
+		err = uploadFile(dumpDir)
+		if err != nil {
+			fmt.Println("Error uploading file:", err)
+			continue
+		}
 	}
 
 	//// Use the localPath variable outside the for loop
