@@ -2,13 +2,12 @@ package bp
 
 import (
 	"bytes"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/service/s3"
 
 	//"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/aws"
@@ -48,63 +47,109 @@ func createSession() (*session.Session, error) {
 }
 func uploadFile(uploadFileDir string) error {
 	sess, err := createSession()
-	log.Print("success creating session")
 	if err != nil {
 		log.Print(err)
-	}
 
-	files, err := os.ReadDir(uploadFileDir)
-	log.Print("success opening directory")
-	if err != nil {
-		log.Print(err)
 	}
 
 	errChan := make(chan error)
 	doneChan := make(chan bool)
 
-	for _, file := range files {
+	err = filepath.WalkDir(uploadFileDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			errChan <- err
+			return err
+		}
+
+		if d.IsDir() {
+			return nil // Skip directories
+		}
+
 		go func(file os.DirEntry) {
-			f, err := os.Open(filepath.Join(uploadFileDir, file.Name()))
+			f, err := os.Open(path)
 			if err != nil {
 				errChan <- err
 				return
 			}
 			defer f.Close()
+
 			doneChan <- true
-		}(file)
-	}
+		}(d)
 
-	for range files {
-		<-doneChan
-	}
+		return nil
+	})
 
-	upFile, err := os.Open(uploadFileDir)
-	log.Print("success opening directory")
 	if err != nil {
 		log.Print(err)
+		return err
 	}
 
-	upFileInfo, err := upFile.Stat()
-	if err != nil {
-		log.Print(err)
+	for range doneChan {
+		// Wait for goroutines to finish
 	}
-	fileSize := upFileInfo.Size()
-	fileBuffer := make([]byte, fileSize)
-	_, err = upFile.Read(fileBuffer)
-	if err != nil {
-		log.Print(err)
+
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			log.Print(err)
+			return err
+		}
 	}
 
 	bucket := os.Getenv("BUCKET_NAME")
-	_, err = s3.New(sess).PutObject(&s3.PutObjectInput{
-		Bucket:             aws.String(bucket),
-		Key:                aws.String(uploadFileDir),
-		ACL:                aws.String("public-read-write"),
-		Body:               bytes.NewReader(fileBuffer),
-		ContentLength:      aws.Int64(fileSize),
-		ContentType:        aws.String(http.DetectContentType(fileBuffer)),
-		ContentDisposition: aws.String("attachment"),
+
+	err = filepath.WalkDir(uploadFileDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		if d.IsDir() {
+			return nil // Skip directories
+		}
+
+		f, err := os.Open(path)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+		defer f.Close()
+
+		fileInfo, err := f.Stat()
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		fileSize := fileInfo.Size()
+		fileBuffer := make([]byte, fileSize)
+		if _, err := f.Read(fileBuffer); err != nil {
+			log.Print(err)
+			return err
+		}
+
+		_, err = s3.New(sess).PutObject(&s3.PutObjectInput{
+			Bucket:             aws.String(bucket),
+			Key:                aws.String(path),
+			ACL:                aws.String("public-read-write"),
+			Body:               bytes.NewReader(fileBuffer),
+			ContentLength:      aws.Int64(fileSize),
+			ContentType:        aws.String(http.DetectContentType(fileBuffer)),
+			ContentDisposition: aws.String("attachment"),
+		})
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+
+		return nil
 	})
 
-	return err
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+
+	return nil
 }
