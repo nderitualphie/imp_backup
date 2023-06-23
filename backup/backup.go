@@ -16,6 +16,7 @@ func Backup() {
 	password := os.Getenv("DB_PASSWORD")
 	hostname := os.Getenv("DB_IP")
 	port := os.Getenv("DB_PORT")
+	remotePath := ""
 	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/", username, password, hostname, port))
 	if err != nil {
 		fmt.Println("Error opening database connection: ", err)
@@ -30,7 +31,6 @@ func Backup() {
 	defer rows.Close()
 
 	// Declare localPath variable
-	var localPath string
 
 	// Iterate over the databases and perform backup for each one
 	for rows.Next() {
@@ -54,7 +54,7 @@ func Backup() {
 		dt := time.DateOnly
 		dumpDir := os.Getenv("BACKUP_DIR") // you should create this directory
 		dumpFilenameFormat := fmt.Sprintf("%s-%s", dbName, dt)
-		localPath = dumpDir + "/" + dumpFilenameFormat
+		//localPath = dumpDir + "/" + dumpFilenameFormat
 
 		// Register database with mysqldump
 		dumper, err := mysqldump.Register(db, dumpDir, dumpFilenameFormat)
@@ -76,7 +76,7 @@ func Backup() {
 
 		// Upload the file to S3 bucket
 		bucketName := os.Getenv("BUCKET_NAME")
-		remotePath := resultFilename
+		localPath := resultFilename
 		err = UploadObject(localPath, bucketName, remotePath)
 		if err != nil {
 			log.Printf("Error uploading to bucket: %v", err)
@@ -84,7 +84,7 @@ func Backup() {
 		}
 	}
 
-	// Use the localPath variable outside the for loop
-	fmt.Printf("Local path: %s\n", localPath)
+	//// Use the localPath variable outside the for loop
+	//fmt.Printf("Local path: %s\n", localPath)
 
 }
