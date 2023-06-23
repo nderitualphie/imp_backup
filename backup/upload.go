@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -52,34 +53,35 @@ func uploadFile(uploadFileDir string) error {
 		log.Print(err)
 	}
 
-	upFile, err := os.Open(uploadFileDir)
+	files, err := os.ReadDir(uploadFileDir)
 	log.Print("success opening directory")
 	if err != nil {
 		log.Print(err)
 	}
 
-	files, err := upFile.Readdirnames(-1)
-	log.Printf("success reading filenames:%v", files)
-	if err != nil {
-		log.Print(err)
-	}
-	defer upFile.Close()
 	errChan := make(chan error)
 	doneChan := make(chan bool)
 
 	for _, file := range files {
-		go func(file string) {
-			f, err := os.Open(uploadFileDir + file)
+		go func(file os.DirEntry) {
+			f, err := os.Open(filepath.Join(uploadFileDir, file.Name()))
 			if err != nil {
 				errChan <- err
+				return
 			}
-			f.Close()
+			defer f.Close()
 			doneChan <- true
 		}(file)
 	}
 
 	for range files {
 		<-doneChan
+	}
+
+	upFile, err := os.Open(uploadFileDir)
+	log.Print("success opening directory")
+	if err != nil {
+		log.Print(err)
 	}
 
 	upFileInfo, err := upFile.Stat()
