@@ -42,7 +42,7 @@ func Backup() {
 		}
 
 		// Skip system databases
-		if dbName == "information_schema" || dbName == "mysql" || dbName == "performance_schema" || dbName == "sys" {
+		if dbName == "information_schema" || dbName == "mysql" || dbName == "performance_schema" || dbName == "sys" || dbName == "test" || dbName == "ussd_app_v2" {
 			continue
 		}
 
