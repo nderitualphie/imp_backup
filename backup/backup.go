@@ -11,6 +11,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+var dumpDir string
+
 func Backup() {
 	// Open connection to database
 	username := os.Getenv("DB_NAME")
@@ -51,10 +53,10 @@ func Backup() {
 
 		}
 		dt := time.DateOnly
-		dumpDir := os.Getenv("BACKUP_DIR") // you should create this directory
+		// you should create this directory
 		dumpFilenameFormat := fmt.Sprintf("%s-%s", dbName, dt)
 		//localPath = dumpDir + "/" + dumpFilenameFormat
-
+		dumpDir := os.Getenv("BACKUP_DIR")
 		// Register database with mysqldump
 		dumper, err := mysqldump.Register(db, dumpDir, dumpFilenameFormat)
 		if err != nil {
@@ -71,17 +73,17 @@ func Backup() {
 		log.Printf("File is saved to %s\n", resultFilename)
 
 		// Upload the file to S3 bucket
-		err = uploadFile(dumpDir)
-		log.Print("uploading...")
-		if err != nil {
-			fmt.Println("Error uploading file:", err)
-			continue
-		}
+
 		dumper.Close()
 	}
 	defer db.Close()
 	defer rows.Close()
 	//// Use the localPath variable outside the for loop
 	//fmt.Printf("Local path: %s\n", localPath)
+	err = uploadFile(dumpDir)
+	log.Print("uploading...")
+	if err != nil {
+		fmt.Println("Error uploading file:", err)
 
+	}
 }

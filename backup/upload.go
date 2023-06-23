@@ -59,6 +59,7 @@ func uploadFile(uploadFileDir string) error {
 	}
 
 	files, err := upFile.Readdirnames(-1)
+	log.Printf("success reading filenames:%v", files)
 	if err != nil {
 		log.Print(err)
 	}
