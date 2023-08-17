@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -70,6 +71,11 @@ func Backup() {
 		fmt.Println("Error copying backup data:", err)
 		return
 	}
-
 	fmt.Printf("Database backup saved to %s\n", destPath)
+	err = uploadFile(backupDir)
+	log.Print("uploading...")
+	if err != nil {
+		fmt.Println("Error uploading file:", err)
+
+	}
 }
