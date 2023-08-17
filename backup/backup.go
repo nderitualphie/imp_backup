@@ -39,7 +39,8 @@ func Backup() {
 	cmd := []string{
 		"/bin/sh",
 		"-c",
-		fmt.Sprintf("mysqldump -u %s --password=%s %s > %s", uname, pass, databaseName, backupFileName),
+		fmt.Sprintf("export MYSQL_PWD=%s", pass),
+		fmt.Sprintf("mysqldump -u %s %s > %s", uname, databaseName, backupFileName),
 	}
 
 	createResp, err := cli.ContainerExecCreate(context.Background(), containerName, types.ExecConfig{
