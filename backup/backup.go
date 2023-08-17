@@ -18,7 +18,7 @@ func Backup() {
 	databaseName := os.Getenv("DB_NAME")
 
 	// Create a timestamp-based filename for the backup
-	timestamp := time.DateOnly
+	timestamp := time.Now().Format("2006-01-02")
 	backupFileName := fmt.Sprintf("%s_%s.sql", timestamp, databaseName)
 
 	// Create a directory for backups if it doesn't exist
