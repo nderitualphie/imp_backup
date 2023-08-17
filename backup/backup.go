@@ -40,7 +40,7 @@ func Backup() {
 		"/bin/sh",
 		"-c",
 		fmt.Sprintf("export MYSQL_PWD=%s", pass),
-		fmt.Sprintf("mysqldump -u %s %s > %s", uname, databaseName, backupFileName),
+		fmt.Sprintf("mysqldump -u %s -p %s > %s", uname, databaseName, backupFileName),
 	}
 
 	createResp, err := cli.ContainerExecCreate(context.Background(), containerName, types.ExecConfig{
