@@ -1,90 +1,72 @@
 package bp
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
-	"log"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
+	"io"
 	"os"
+	"path/filepath"
 	"time"
-
-	"github.com/JamesStewy/go-mysqldump"
-	_ "github.com/go-sql-driver/mysql"
 )
 
-var dumpDir string
-
 func Backup() {
-	// Open connection to database
-	username := os.Getenv("DB_NAME")
-	password := os.Getenv("DB_PASSWORD")
-	hostname := os.Getenv("DB_IP")
-	port := os.Getenv("DB_PORT")
+	// Get container name and database name as command-line arguments
+	containerName := os.Getenv("C_NAME")
+	databaseName := os.Getenv("DB_NAME")
 
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/", username, password, hostname, port))
-	log.Print("Success connecting to database")
+	// Create a timestamp-based filename for the backup
+	timestamp := time.DateOnly
+	backupFileName := fmt.Sprintf("%s_%s.sql", timestamp, databaseName)
+
+	// Create a directory for backups if it doesn't exist
+	backupDir := os.Getenv("BACKUP_DIR")
+
+	// Initialize Docker client
+	cli, err := client.NewEnvClient()
 	if err != nil {
-		fmt.Println("Error opening database connection: ", err)
+		fmt.Println("Error initializing Docker client:", err)
 
 	}
-
-	rows, err := db.Query("SHOW DATABASES")
-	log.Print("success showing databases")
+	uname := os.Getenv("")
+	// Run backup command inside the container
+	cmd := []string{
+		"/bin/sh",
+		"-c",
+		fmt.Sprintf("mysqldump -u<username> -p<password> %s > /backup/%s", databaseName, backupFileName),
+	}
+	createResp, err := cli.ContainerExecCreate(context.Background(), containerName, types.ExecConfig{
+		Cmd:          cmd,
+		AttachStdout: true,
+		AttachStderr: true,
+	})
 	if err != nil {
-		fmt.Println("Error opening database: ", err)
-
+		fmt.Println("Error creating exec instance:", err)
+		return
 	}
 
-	// Iterate over the databases and perform backup for each one
-	for rows.Next() {
-		var dbName string
-		if err := rows.Scan(&dbName); err != nil {
-			fmt.Println("Error scanning database name: ", err)
-		}
-
-		// Skip system databases
-		if dbName == "information_schema" || dbName == "mysql" || dbName == "performance_schema" || dbName == "sys" || dbName == "test" || dbName == "ussd_app_v2" {
-			continue
-		}
-
-		// Open connection to the specific database
-		db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", username, password, hostname, port, dbName))
-		if err != nil {
-			fmt.Println("Error opening database connection: ", err)
-
-		}
-		dt := time.DateOnly
-		// you should create this directory
-		dumpFilenameFormat := fmt.Sprintf("%s-%s", dbName, dt)
-		//localPath = dumpDir + "/" + dumpFilenameFormat
-		dumpDir := os.Getenv("BACKUP_DIR")
-		// Register database with mysqldump
-		dumper, err := mysqldump.Register(db, dumpDir, dumpFilenameFormat)
-		if err != nil {
-			fmt.Println("Error registering database:", err)
-
-		}
-
-		// Dump database to file
-		resultFilename, err := dumper.Dump()
-		if err != nil {
-			fmt.Println("Error dumping:", err)
-
-		}
-		log.Printf("File is saved to %s\n", resultFilename)
-
-		// Upload the file to S3 bucket
-
-		dumper.Close()
-	}
-	defer db.Close()
-	defer rows.Close()
-	//// Use the localPath variable outside the for loop
-	//fmt.Printf("Local path: %s\n", localPath)
-	dumpDir := os.Getenv("BACKUP_DIR")
-	err = uploadFile(dumpDir)
-	log.Print("uploading...")
+	resp, err := cli.ContainerExecAttach(context.Background(), createResp.ID, types.ExecStartCheck{})
 	if err != nil {
-		fmt.Println("Error uploading file:", err)
-
+		fmt.Println("Error attaching to exec instance:", err)
+		return
 	}
+	defer resp.Close()
+
+	// Copy the backup file from the container to the host
+	destPath := filepath.Join(backupDir, backupFileName)
+	out, err := os.Create(destPath)
+	if err != nil {
+		fmt.Println("Error creating backup file:", err)
+		return
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Reader)
+	if err != nil {
+		fmt.Println("Error copying backup data:", err)
+		return
+	}
+
+	fmt.Printf("Database backup saved to %s\n", destPath)
 }

@@ -4,7 +4,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"log"
 	"path/filepath"
-
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"os"
 	//"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -92,7 +91,6 @@ func uploadFile(uploadFileDir string) error {
 		}
 		log.Printf("File uploaded: %s", filePath)
 	}
-
 	log.Print("Upload completed successfully")
 	return nil
 }
