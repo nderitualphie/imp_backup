@@ -24,17 +24,20 @@ func Backup() {
 	backupDir := os.Getenv("BACKUP_DIR")
 
 	// Initialize Docker client
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithAPIVersionNegotiation())
 	if err != nil {
 		fmt.Println("Error initializing Docker client:", err)
 
 	}
-	uname := os.Getenv("")
+	uname := os.Getenv("DB_USER")
+	pass := os.Getenv("DB_PASSWORD")
 	// Run backup command inside the container
 	cmd := []string{
 		"/bin/sh",
 		"-c",
-		fmt.Sprintf("mysqldump -u<username> -p<password> %s > /backup/%s", databaseName, backupFileName),
+		fmt.Sprintf("mysqldump -u %s -p%s %s > %s", uname, pass, databaseName, backupFileName),
 	}
 	createResp, err := cli.ContainerExecCreate(context.Background(), containerName, types.ExecConfig{
 		Cmd:          cmd,
