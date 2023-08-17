@@ -35,10 +35,11 @@ func Backup() {
 	uname := os.Getenv("DB_USER")
 	pass := os.Getenv("DB_PASSWORD")
 	// Run backup command inside the container
+
 	cmd := []string{
 		"/bin/sh",
 		"-c",
-		fmt.Sprintf("mysqldump -u %s -p'%s' %s > %s", uname, pass, databaseName, backupFileName),
+		fmt.Sprintf("export MYSQL_PWD='%s'; mysqldump -u %s %s > %s", pass, uname, databaseName, backupFileName),
 	}
 	createResp, err := cli.ContainerExecCreate(context.Background(), containerName, types.ExecConfig{
 		Cmd:          cmd,
