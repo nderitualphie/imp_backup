@@ -59,12 +59,11 @@ func Backup() {
 	}
 	defer resp.Close()
 	copyCmd := exec.Command("docker", "cp", containerName+":"+backupFileName, backupDir)
-	_, copyErr := copyCmd.CombinedOutput()
+	copyOutput, copyErr := copyCmd.CombinedOutput()
 	if copyErr != nil {
 		log.Printf("Error copying backup file from container: %v\n", copyErr)
-
+		log.Printf("docker cp output: %s\n", copyOutput)
 	}
-	log.Printf("Copied backup file from container to %s\n", backupDir)
 	err = uploadFile(backupDir)
 	log.Print("uploading...")
 	if err != nil {
