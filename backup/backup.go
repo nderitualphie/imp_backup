@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"io"
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 )
 
@@ -51,36 +49,20 @@ func Backup() {
 	})
 	if err != nil {
 		fmt.Println("Error creating exec instance:", err)
-		return
+
 	}
 
 	resp, err := cli.ContainerExecAttach(context.Background(), createResp.ID, types.ExecStartCheck{})
 	if err != nil {
 		fmt.Println("Error attaching to exec instance:", err)
-		return
+
 	}
 	defer resp.Close()
-
-	// Copy the backup file from the container to the host
-	destPath := filepath.Join(backupDir, backupFileName)
-	out, err := os.Create(destPath)
-	if err != nil {
-		fmt.Println("Error creating backup file:", err)
-		return
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Reader)
-	if err != nil {
-		fmt.Println("Error copying backup data:", err)
-		return
-	}
-	fmt.Printf("Database backup saved to %s\n", destPath)
 	copyCmd := exec.Command("docker", "cp", containerName+":"+backupFileName, backupDir)
 	_, copyErr := copyCmd.CombinedOutput()
 	if copyErr != nil {
 		log.Printf("Error copying backup file from container: %v\n", copyErr)
-		return
+
 	}
 	log.Printf("Copied backup file from container to %s\n", backupDir)
 	err = uploadFile(backupDir)
