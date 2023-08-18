@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 )
@@ -75,6 +76,13 @@ func Backup() {
 		return
 	}
 	fmt.Printf("Database backup saved to %s\n", destPath)
+	copyCmd := exec.Command("docker", "cp", containerName+":"+backupFileName, backupDir)
+	_, copyErr := copyCmd.CombinedOutput()
+	if copyErr != nil {
+		log.Printf("Error copying backup file from container: %v\n", copyErr)
+		return
+	}
+	log.Printf("Copied backup file from container to %s\n", backupDir)
 	err = uploadFile(backupDir)
 	log.Print("uploading...")
 	if err != nil {
