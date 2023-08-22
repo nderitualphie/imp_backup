@@ -19,12 +19,14 @@ func Backup() {
 
 	// Create a directory for backups if it doesn't exist
 	backupDir := os.Getenv("BACKUP_DIR")
-
+pass := os.Getenv("DB_PASSWORD")
+uname := os.Getenv("DB_USER")
 	// Build the mysqldump command
 	cmd := exec.Command(
     "docker", "exec", containerName,
-    "mysqldump", "-u", "root", "--password=smsafrica@2033.6", databaseName,
-    ">", fmt.Sprintf("%s/%s", backupDir,backupFileName),
+    "mysqldump", "-u", uname, "--password="+pass, databaseName,
+    ">", fmt.Sprintf("%s/%s", backupDir, backupFileName),
+
 )
 	output, err := cmd.CombinedOutput()
 	if err != nil {
