@@ -2,6 +2,7 @@ package bp
 
 import (
 	"fmt"
+	"github.com/docker/docker/pkg/ioutils"
 	"log"
 	"os"
 	"os/exec"
@@ -19,29 +20,29 @@ func Backup() {
 
 	// Create a directory for backups if it doesn't exist
 	backupDir := os.Getenv("BACKUP_DIR")
-pass := os.Getenv("DB_PASSWORD")
-uname := os.Getenv("DB_USER")
+	pass := os.Getenv("DB_PASSWORD")
+	uname := os.Getenv("DB_USER")
+
 	// Build the mysqldump command
 	cmd := exec.Command(
-    "docker", "exec", containerName,
-    "mysqldump", "-u", uname, "--password="+pass, databaseName,
-    ">", fmt.Sprintf("%s/%s", backupDir, backupFileName),
+		"docker", "exec", containerName,
+		"mysqldump", "-u", uname, "--password="+pass, databaseName,
+	)
+	log.Printf("cmd:%v", cmd)
 
-)
-log.Printf("cmd:%v",cmd)
+	// Capture the command's output
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error running mysqldump: %v\n", err)
-		log.Printf("Command output: %s\n", output)
-		return
-	}
 
-	// Save the backup to a file
+	}
+	// Set the backup file path
 	backupFilePath := fmt.Sprintf("%s/%s", backupDir, backupFileName)
-	err = os.WriteFile(backupFilePath, output, 0644)
+
+	// Write the command output to the backup file
+	err = ioutils.AtomicWriteFile(backupFilePath, output, 0644)
 	if err != nil {
 		log.Printf("Error saving backup file: %v\n", err)
-		return
 	}
 
 	// Upload the backup file
