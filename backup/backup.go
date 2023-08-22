@@ -28,6 +28,7 @@ uname := os.Getenv("DB_USER")
     ">", fmt.Sprintf("%s/%s", backupDir, backupFileName),
 
 )
+log.Printf("cmd:%v",cmd)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error running mysqldump: %v\n", err)
