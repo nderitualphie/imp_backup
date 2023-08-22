@@ -1,10 +1,7 @@
 package bp
 
 import (
-	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"log"
 	"os"
 	"os/exec"
@@ -12,7 +9,7 @@ import (
 )
 
 func Backup() {
-	// Get container name and database name as command-line arguments
+	// Get container name and database name as environment variables
 	containerName := os.Getenv("C_NAME")
 	databaseName := os.Getenv("DB_NAME")
 
@@ -23,51 +20,32 @@ func Backup() {
 	// Create a directory for backups if it doesn't exist
 	backupDir := os.Getenv("BACKUP_DIR")
 
-	// Initialize Docker client
-	cli, err := client.NewClientWithOpts(
-		client.FromEnv,
-		client.WithAPIVersionNegotiation())
+	// Build the mysqldump command
+	cmd := exec.Command(
+    "docker", "exec", containerName,
+    "mysqldump", "-u", "root", "--password=smsafrica@2033.6", databaseName,
+    ">", fmt.Sprintf("%s/%s", backupDir,backupFileName),
+)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println("Error initializing Docker client:", err)
-
-	}
-	uname := os.Getenv("DB_USER")
-	pass := os.Getenv("DB_PASSWORD")
-	// Run backup command inside the container
-
-	cmd := []string{
-		"/bin/sh",
-		"-c",
-
-		fmt.Sprintf("mysqldump -u %s -p'%s' %s > %s", uname, pass, databaseName, backupFileName),
+		log.Printf("Error running mysqldump: %v\n", err)
+		log.Printf("Command output: %s\n", output)
+		return
 	}
 
-	createResp, err := cli.ContainerExecCreate(context.Background(), containerName, types.ExecConfig{
-		Cmd:          cmd,
-		AttachStdout: true,
-		AttachStderr: true,
-	})
+	// Save the backup to a file
+	backupFilePath := fmt.Sprintf("%s/%s", backupDir, backupFileName)
+	err = os.WriteFile(backupFilePath, output, 0644)
 	if err != nil {
-		fmt.Println("Error creating exec instance:", err)
-
+		log.Printf("Error saving backup file: %v\n", err)
+		return
 	}
 
-	resp, err := cli.ContainerExecAttach(context.Background(), createResp.ID, types.ExecStartCheck{})
-	if err != nil {
-		fmt.Println("Error attaching to exec instance:", err)
-
-	}
-	defer resp.Close()
-	copyCmd := exec.Command("docker", "cp", containerName+":"+backupFileName, backupDir)
-	copyOutput, copyErr := copyCmd.CombinedOutput()
-	if copyErr != nil {
-		log.Printf("Error copying backup file from container: %v\n", copyErr)
-		log.Printf("docker cp output: %s\n", copyOutput)
-	}
+	// Upload the backup file
 	err = uploadFile(backupDir)
-	log.Print("uploading...")
 	if err != nil {
-		fmt.Println("Error uploading file:", err)
-
+		log.Printf("Error uploading file: %v\n", err)
+		return
 	}
+	log.Print("Upload completed successfully")
 }
